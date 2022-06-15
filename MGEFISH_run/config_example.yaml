@@ -11,7 +11,7 @@
 ## Paths
 input_dir: data # Relative path to wherever your input images are from the
                   # projecet workdir
-output_dir: segmentation # relative path of the directory you want to write to,
+output_dir: outputs # relative path of the directory you want to write to,
                         # does not need to exist yet
 pipeline_path: pipeline_segmentation # relative path to the pipeline folder from workdir
 functions_path: functions  # Path to function scripts relative to the pipeline path
@@ -19,10 +19,14 @@ functions_path: functions  # Path to function scripts relative to the pipeline p
 ## Inputs
 input_ext: .czi  # Extenstion for image files
 input_table_fn: input_table.csv  # path to table of input images
+input_regex: '\w+'
 input_table_cols: [sample_name]  # Add to if you want different params for
                                   # different images, one colum must be "sample_name"
 conda_env: hiprfish_imaging_py38
-snakefile: Snakefile  # name of the snakefile in the pipeline path
+snakefile: Snakefile_seg_example  # name of the snakefile in the pipeline path
+spot_filter:
+  filter_dir: outputs/threshold_pick
+  filter_values_fn: spot_filter_values.csv
 # conda_env_fn: ../envs/hiprfish_imaging_py38.yaml  # environment filename relative
 #                                                 # to the rules folder in the pipeline
 
@@ -33,6 +37,7 @@ cell_seg:
   pre_log: False  # Pre-processing: take the log? used for high signal variance
   pre_denoise: True  # Use denoise non-local means?
   pre_gauss: 2.5  # Gaussian filter? no if zero, otherwise value sets the sigma
+  diff_gauss: (0,)  # Difference of gaussians edge enhancement?...set to (0,) if not
   bg_filter: True  # Do we even want to subtract the background?
   bg_log: True  # Take the log of the image in auto background subtraction
   bg_smoothing: 0  # Pixels for gaussian blurring in auto background subtraction
@@ -41,7 +46,7 @@ cell_seg:
   bg_threshold: 0  # Manual value of background subtraction threshold
                   # overrides auto background subtraction
   n_clust: 2  # Number of clusters to use in LNE foreground selection
-  small_objects: 50  # Remove segmented objects with pixel area smaller than this value
+  small_objects: 200  # Remove segmented objects with pixel area smaller than this value
   maxima: False  # Locate maxima in segmentaiton and get intensities there
 
 spot_seg:
@@ -50,6 +55,7 @@ spot_seg:
   pre_log: False  # Pre-processing the segmentation image: take the log
   pre_denoise: True  # Use denoise non-local means?
   pre_gauss: 0  # Gaussian filter? no if zero, otherwise value sets the sigma
+  diff_gauss: (0,)  # Difference of gaussians edge enhancement?...set to (0,) if not
   bg_filter: False  # Do we even want to subtract the background?
   bg_log: False  # Take the log of the image in auto background subtraction
   bg_smoothing: 0  # Pixels for gaussian blurring in auto background subtraction
@@ -58,7 +64,7 @@ spot_seg:
   bg_threshold: 0.005  # Manual value of background subtraction threshold
                   # overrides auto background subtraction
   n_clust: 2  # Number of clusters to use in LNE foreground selection
-  small_objects: 50  # Remove segmented objects with pixel area smaller than this value
+  small_objects: 10  # Remove segmented objects with pixel area smaller than this value
   maxima: True  # Locate maxima in segmentaiton and get intensities there
 
 seg_process_dpi: 500

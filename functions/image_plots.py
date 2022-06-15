@@ -140,3 +140,77 @@ def plot_seg_outline(ax, seg, col=(0,1,0)):
     extent = (0,seg.shape[1],0,seg.shape[0])
     ax.imshow(im_line, cmap=cmap, clim=clims, interpolation='none')
     return ax
+
+
+def get_ROC_curves():
+    rd = {}
+    # iterate through pos/neg
+    for j in J:
+        print(i,j)
+        sn_fovs = sn_dict[i][j]
+        sp_df_all = pd.DataFrame([])
+        cell_count = 0
+        # Combine fovs
+        for k, sn in enumerate(sn_fovs):
+            # Get seg
+            seg = np.load(seg_dir + '/cell_seg/' + sn[1] + '_cell_seg.npy')
+            cell_count += np.unique(seg).shape[0]
+            # Get spot params
+            sp_df_fn = seg_dir + '/spot_analysis/' + sn[1] + '_max_props_cid.csv'
+            sp_df = pd.read_csv(sp_df_fn)
+            sp_df['cell_id_fov'] = sp_df.cell_id.astype(str) + '_' + str(k)
+            sp_df_all = sp_df_all.append(sp_df)
+        # Filter by distance
+        sp_df_cell = sp_df_all[(sp_df_all.cell_dist <= max_dist)]
+        # Get threshold curves
+        # nsrs = [sp_df_cell.loc[(sp_df_cell.intensity < l),'cell_id_fov'] for l in x]
+        psrs = [sp_df_cell.loc[(sp_df_cell.intensity >= l),'cell_id_fov'] for l in x]
+        rd[j] = {'c':cell_count, 'p':psrs}
+        # rd[j] = {'c':cell_count, 'n':nsrs,'p':psrs}
+    # calculate values
+    # Rs = {}
+    # for j in J:
+    FPR = [ns.unique().shape[0] / rd['neg']['c'] for ns in rd['neg']['p']]
+    TNR = [1-fpr for fpr in FPR]
+    TPR = [ns.unique().shape[0] / rd['pos']['c'] for ns in rd['pos']['p']]
+    FNR = [1 - tpr for tpr in TPR]
+        # Rs[j + '_NR'] = NR
+        # Rs[j + '_PR'] = PR
+    PPV = [ps.unique().shape[0] / (ps.unique().shape[0] + nps.unique().shape[0])
+            for ps, nps in zip(rd['pos']['p'], rd['neg']['p'])]
+    FOR = [(rd['pos']['c'] - ps.unique().shape[0]) / ((rd['pos']['c'] -\
+            ps.unique().shape[0]) + (rd['neg']['c'] - nps.unique().shape[0]) + 1e-15)
+            for ps, nps in zip(rd['pos']['p'], rd['neg']['p'])]
+    # Save values
+    roc_df = pd.DataFrame({'x':x,'TNR':TNR,'FPR':FPR,'FNR':FNR,'TPR':TPR,'PPV':PPV,'FOR':FOR})
+    roc_df.to_csv(roc_df_fnt.format(gfn), index=False)
+
+
+def general_plot(xlabel='', ylabel='', ft=12, dims=(5,3), col='k', lw=1, pad=0):
+    fig, ax = plt.subplots(figsize=(dims[0], dims[1]),  tight_layout={'pad': pad})
+    for i in ax.spines:
+        ax.spines[i].set_linewidth(lw)
+    ax.spines['top'].set_color(col)
+    ax.spines['bottom'].set_color(col)
+    ax.spines['left'].set_color(col)
+    ax.spines['right'].set_color(col)
+    ax.tick_params(direction='in', labelsize=ft, color=col, labelcolor=col)
+    ax.set_xlabel(xlabel, fontsize=ft, color=col)
+    ax.set_ylabel(ylabel, fontsize=ft, color=col)
+    ax.patch.set_alpha(0)
+    return(fig, ax)
+
+
+def plot_ROC_curves(roc_df, xlims=[], dims=(5,4), thresholds=[],
+                    col='k'):
+    fig, ax = ip.general_plot(xlabel='Threshold',dims=dims)
+    ax.plot(roc_df.x, roc_df.PPV,label='PPV')
+    ax.plot(roc_df.x, roc_df.FOR,label='FOR')
+    ax.plot(roc_df.x, roc_df.TPR, label='TPR')
+    ax.plot(roc_df.x, roc_df.FPR, label='FPR')
+    # ax.plot(roc_df.x, roc_df.TNR, label='TNR')
+    # ax.plot(roc_df.x, roc_df.FNR,label='FNR')
+    ax.plot([threshold]*2, [0,1], col)
+    ax.legend()
+    ax.set_xlim(xlims)
+    return figs

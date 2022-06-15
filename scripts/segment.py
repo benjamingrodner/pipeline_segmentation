@@ -22,8 +22,9 @@ def main():
     parser.add_argument('out_fn', type = str, help = 'Output filename')
     parser.add_argument('-cfn', '--config_fn', dest ='config_fn', type = str, help = '')
     parser.add_argument('-st', '--seg_type', dest ='seg_type', type = str, help = '')
-    parser.add_argument('-pp', '--pipeline_path', dest ='pipeline_path', type = str, help = '')
+    # parser.add_argument('-pp', '--pipeline_path', dest ='pipeline_path', type = str, help = '')
     parser.add_argument('-pfn', '--process_fn', dest ='process_fn', type = str, help = '')
+    parser.add_argument('-ch', '--channel', dest ='channel', type = str, default='all', help = '')
     args = parser.parse_args()
 
     # set cell segmentation parameters in config file
@@ -35,16 +36,19 @@ def main():
     im_full = np.load(args.in_fn)
 
     # get 2d raw image
-    sys.path.append(args.pipeline_path + '/functions')
+    sys.path.append(config['pipeline_path'] + '/' + config['functions_path'])
     import segmentation_func as sf
-    im = sf.max_projection(im_full, pdict['channels'])
-
+    channels = pdict['channels'] if args.channel == 'all' else [int(args.channel)]
+    im = sf.max_projection(im_full, channels)
+    # for ch in pdict['channels']:
+        # im = im_full[:,:,ch]
     # run segmentation
     im_pre = sf.pre_process(
         im,
         log=pdict['pre_log'],
         denoise=pdict['pre_denoise'],
-        gauss=pdict['pre_gauss']
+        gauss=pdict['pre_gauss'],
+        diff_gauss=eval(pdict['diff_gauss'])
         )
     im_mask = sf.get_background_mask(
         im,
@@ -61,6 +65,8 @@ def main():
         n_clust=pdict['n_clust'],
         small_objects=pdict['small_objects']
         )
+
+
 
     # save segmentation
     np.save(args.out_fn, im_seg)

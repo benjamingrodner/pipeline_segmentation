@@ -15,13 +15,14 @@ from sklearn.cluster import MiniBatchKMeans
 from skimage.morphology import remove_small_objects
 from scipy.ndimage import binary_fill_holes, binary_opening
 from skimage.segmentation import watershed
-from skimage.measure import label, regionprops_table
+from skimage.measure import label, regionprops_table, regionprops
 from skimage.feature import peak_local_max
 from scipy import ndimage as ndi
 from numba import cuda, float32, njit
 import math
 from neighbor2d import line_profile_2d_v2
 import skimage.restoration as skr
+from skimage.filters import difference_of_gaussians
 import scipy.ndimage as ndi
 import pandas as pd
 
@@ -218,7 +219,10 @@ def max_projection(raw, channels):
 
 
 
-def pre_process(image, denoise=False, gauss=0, log=False):
+def pre_process(image, denoise=False, gauss=0, log=False, diff_gauss=(0,)):
+    if log:
+        image = np.log10(image + 1e-15)
+        image = (image - np.min(image))/(np.max(image) - np.min(image))
     if denoise:
         patch_kw = dict(patch_size=5,      # 5x5 patches
                         patch_distance=6)  # 13x13 search area
@@ -227,9 +231,8 @@ def pre_process(image, denoise=False, gauss=0, log=False):
                                     fast_mode=True, **patch_kw)
     if gauss:
         image = ndi.gaussian_filter(image, sigma=gauss, order=0)
-    if log:
-        image = np.log10(image + 1e-15)
-        image = (image - np.min(image))/(np.max(image) - np.min(image))
+    if len(diff_gauss)==2:
+        image = difference_of_gaussians(image, diff_gauss[0],diff_gauss[1])
     return image
 
 
@@ -281,9 +284,21 @@ def segment(image, background_mask=np.array([]), window=5, n_clust=2, small_obje
 
 
 def measure_regionprops(seg, raw):
-    regions = regionprops_table(seg, intensity_image = raw,
-                                properties=['label','centroid','area',
-                                'mean_intensity','min_intensity', 'bbox',
-                                'major_axis_length', 'minor_axis_length',
-                                'orientation','eccentricity','perimeter'])
-    return pd.DataFrame(regions)
+    sp_ = regionprops(seg, intensity_image = raw)
+    properties=['label','centroid','area','max_intensity','mean_intensity',
+                'min_intensity', 'bbox','major_axis_length', 'minor_axis_length',
+                'orientation','eccentricity','perimeter']
+    df = pd.DataFrame([])
+    for p in properties:
+        df[p] = [s[p] for s in sp_]
+    for j in range(2):
+        df['centroid-' + str(j)] = [r['centroid'][j] for i, r in df.iterrows()]
+    for j in range(4):
+        df['bbox-' + str(j)] = [r['bbox'][j] for i, r in df.iterrows()]
+    # regions = regionprops_table(seg, intensity_image = raw,
+    #                             properties=['label','centroid','area','max_intensity',
+    #                             'mean_intensity','min_intensity', 'bbox',
+    #                             'major_axis_length', 'minor_axis_length',
+    #                             'orientation','eccentricity','perimeter'])
+    # return pd.DataFrame(regions)
+    return df

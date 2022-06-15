@@ -4,7 +4,8 @@
 # Created Date: 2022_02_03
 # =============================================================================
 """
-Given spot segmentation get the object properties table
+Given spot segmentation get the object properties table.  Also find local maxima
+in each object.
 """
 # =============================================================================
 # Params
@@ -14,13 +15,13 @@ fn_mod = config[seg_type]['fn_mod']
 rule get_spot_seg_props:
     input:
         raw_fn = config['output_dir'] + '/raw_npy/{sample_name}.npy',
-        seg_fn = (config['output_dir'] + '/' + seg_type + '/{sample_name}'
-                  + fn_mod + '.npy')
+        seg_fn = (config['output_dir'] + '/' + seg_type + '/{sample_name}/'
+               + '{sample_name}_chan_{channel_spot}' + fn_mod + '.npy'),
     output:
-        seg_props_fn = (config['output_dir'] + '/' + seg_type + '_props' + '/{sample_name}'
-                        + fn_mod + '_props.csv'),
-        max_props_fn = (config['output_dir'] + '/' + seg_type + '_props' + '/{sample_name}'
-                        + '_max_props.csv'),
+        seg_props_fn = (config['output_dir'] + '/' + seg_type + '_props' + '/{sample_name}/'
+                        + '{sample_name}_chan_{channel_spot}' + fn_mod + '_props.csv'),
+        max_props_fn = (config['output_dir'] + '/' + seg_type + '_props' + '/{sample_name}/'
+                        + '{sample_name}_chan_{channel_spot}' + fn_mod + '_max_props.csv'),
     params:
         config_fn = config_fn,
         pipeline_path = config['pipeline_path'],
@@ -31,8 +32,9 @@ rule get_spot_seg_props:
         "-r {input.raw_fn} "
         "-s {input.seg_fn} "
         "-st {params.seg_type} "
-        "-pp {params.pipeline_path} "
         "-sp {output.seg_props_fn} "
         "-mp {output.max_props_fn} "
+        "-ch {wildcards.channel_spot} "
+        # "-pp {params.pipeline_path} "
     # conda:
     #     config['conda_env_fn']

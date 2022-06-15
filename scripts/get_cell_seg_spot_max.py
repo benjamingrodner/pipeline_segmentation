@@ -22,28 +22,34 @@ def main():
     parser = argparse.ArgumentParser('')
     parser.add_argument('-cfn', '--config_fn', dest ='config_fn', type = str, help = '')
     parser.add_argument('-cs', '--cell_seg_fn', dest ='cell_seg_fn', type = str, help = '')
-    parser.add_argument('-mp', '--max_props_fn', dest ='max_props_fn', type = str, help = '')
-    # parser.add_argument('-pp', '--pipeline_path', dest ='pipeline_path', type = str, help = '')
-    parser.add_argument('-mpc', '--max_props_cid_fn', dest ='max_props_cid_fn', type = str, help = '')
+    parser.add_argument('-cp', '--cell_seg_props_fn', dest ='cell_seg_props_fn', type = str, help = '')
+    parser.add_argument('-cpm', '--cell_props_spot_max_fn', dest ='cell_props_spot_max_fn', type = str, help = '')
+    parser.add_argument('-rf', '--raw_fn', dest ='raw_fn', type = str, help = '')
+    parser.add_argument('-ch', '--channel_spot', dest ='channel_spot', type = str, help = '')
     args = parser.parse_args()
 
     # set  parameters in config file
     with open(args.config_fn, 'r') as f:
         config = yaml.safe_load(f)
 
-    # Load stuff
-    maxs = pd.read_csv(args.max_props_fn)
-    cell_seg = np.load(args.cell_seg_fn)
-
-    # import custom stuff
+    # import custom modules
     sys.path.append(config['pipeline_path'] + '/' + config['functions_path'])
+    import segmentation_func as sf
     import spot_funcs as spf
 
-    # assign spots to cells
-    maxs_cid = spf.maxs_to_cell_id(maxs, cell_seg, config['max_dist_to_cell'])
+    # Load files
+    cell_seg = np.load(args.cell_seg_fn)
+    cell_seg_props = pd.read_csv(args.cell_seg_props_fn)
+    raw = np.load(args.raw_fn)
+    raw_2D = sf.max_projection(raw, [int(args.channel_spot)])
 
-    # Save new spot properties file
-    maxs_cid.to_csv(args.max_props_cid_fn)
+    # Get max spot value by cell seg
+    spot_max_int = spf.get_cell_spot_maxs(cell_seg_props, cell_seg, raw_2D,
+                                         r=config['max_dist_to_cell'])
+
+    # Save new cell seg properties
+    cell_seg_props['cell_spot_max_int'] = spot_max_int
+    cell_seg_props.to_csv(args.cell_props_spot_max_fn)
 
     return
 

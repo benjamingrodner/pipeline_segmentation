@@ -2,6 +2,7 @@
 # =============================================================================
 # Created By  : Ben Grodner
 # Created Date: 2022_01_29
+# Last edited : 2022_05_10
 # =============================================================================
 """
 This pipeline was written to segment  many Airyscan superresolution images of
@@ -26,6 +27,11 @@ def get_input_table(config):
 def expand_sn(string):
     return [string.format(sample_name=sn) for sn in SAMPLE_NAMES]
 
+def expand_wildcards(string):
+    return [string.format(sample_name=sn, channel=ch) for ch in SPOT_CHANNELS
+            for sn in SAMPLE_NAMES]
+
+
 # =============================================================================
 # Parameters
 # =============================================================================
@@ -37,32 +43,18 @@ input_table = get_input_table(config)
 SAMPLE_NAMES = input_table['sample_name'].values
 INPUT_FILENAMES_FULL = [config['input_dir'] + '/' + sn + config['input_ext']
                         for sn in SAMPLE_NAMES]
+SPOT_CHANNELS = config['spot_seg']['channels']
 
 # Rule all outputs
-raw_npy_fns = expand_sn(config['output_dir'] + '/raw_npy/{sample_name}.npy')
-cell_seg_fns = expand_sn((config['output_dir'] + '/cell_seg/{sample_name}'
-                            + config['cell_seg']['fn_mod'] + '.npy'))
-spot_seg_fns = expand_sn((config['output_dir'] + '/spot_seg/{sample_name}'
-                            + config['spot_seg']['fn_mod'] + '.npy'))
-cell_seg_props_fns = expand_sn((config['output_dir'] + '/cell_seg_props/{sample_name}'
-                                + config['cell_seg']['fn_mod'] + '_props.csv'))
-spot_seg_props_fns = expand_sn((config['output_dir'] + '/spot_seg_props/{sample_name}'
-                                + config['spot_seg']['fn_mod'] + '_props.csv'))
-max_props_cid_fns = expand_sn((config['output_dir'] + '/spot_analysis/{sample_name}_max_props_cid.csv'))
+max_props_cid_fns = expand_wildcards(config['output_dir'] + '/spot_analysis/{sample_name}_chan_{channel}_max_props_cid.csv')
 
 # =============================================================================
 # Snake rules
 # =============================================================================
-wildcard_constraints:
-    sample_name=config['input_regex']
+
 rule all:
     input:
-        cell_seg_props_fns,
         max_props_cid_fns
 
-# include: 'rules/write_files_to_npy.smk'
-include: 'rules/segment_cells.smk'
-include: 'rules/segment_spots.smk'
-include: 'rules/get_cell_seg_props.smk'
-include: 'rules/get_spot_seg_props.smk'
-include: 'rules/assign_spots_to_cells.smk'
+# include: config['pipeline_dir'] + '/rules/filter_spots.smk'
+include: config['pipeline_dir'] + '/rules/assign_spots_to_cells_220608.smk'

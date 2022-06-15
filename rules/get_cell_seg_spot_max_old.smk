@@ -4,8 +4,8 @@
 # Created Date: 2022_02_03
 # =============================================================================
 """
-Given cell segmentation and spot segmenation properties tables, assign spots to
-cells
+Given cell segmentation and raw spot image, get the maximum value of the spot
+image in each cell
 """
 # =============================================================================
 # Params
@@ -21,14 +21,7 @@ rule assign_spots_to_cells:
                         + '{sample_name}_chan_{channel_cell}' + fn_mod + '_props.csv'),
         # max = (config['output_dir'] + '/spot_seg_props/{sample_name}_max_props.csv')
         raw_fn = config['output_dir'] + '/raw_npy/{sample_name}.npy',
-        max = (config['output_dir'] + '/spot_filtered/{sample_name}/'
-                + '{sample_name}_cellchan_{channel_cell}_spotchan_{channel_spot}'
-                + fn_mod + '_max_props_filt.csv')
     output:
-         # (config['output_dir'] + '/spot_analysis/{sample_name}_max_props_cid.csv')
-        max_props_cid = (config['output_dir'] + '/spot_analysis/{sample_name}/'
-                + '{sample_name}_cellchan_{channel_cell}_spotchan_{channel_spot}'
-                + '_max_props_cid.csv')
         cell_props_spot_max_fn = (config['output_dir'] + '/' + seg_type
                 + '_props_spot_max/{sample_name}/'
                 + '{sample_name}_cellchan_{channel_cell}_spotchan_{channel_spot}'

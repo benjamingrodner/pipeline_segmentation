@@ -28,6 +28,8 @@ import os
 import javabridge
 import bioformats
 import sys
+import numpy as np
+from matplotlib.cm import get_cmap
 
 # %% codecell
 # Set up notebook stuff
@@ -207,7 +209,7 @@ ax = ip.plot_seg_outline(ax, im_spot_seg, col=(0,0.8,0.8))
 
 # %% codecell
 # =============================================================================
-# Run the pipeline
+# Run the seg pipeline
 # =============================================================================
 
 # %% codecell
@@ -243,35 +245,66 @@ command = [
 print(" ".join(command))
 subprocess.check_call(command)
 
+# %% codecell
+# =============================================================================
+# Select a spot threshold
+# =============================================================================
+# Load max props table and get intensity values
+factors = ['moi','time','fov']
+keys = [imfn.get_filename_keys(sn, factors) for sn in sample_names]
+sn_dict = imfn.get_nested_dict(keys, sample_names, [0,1])
+
+# %% codecell
+# Get threshold curves
+x = np.linspace(0,0.1,20)  # thresholds
+max_props_fnt = (config['output_dir'] + '/' + 'spot_seg_props' + '/{sample_name}/'
+                + '{sample_name}_chan_{channel_spot}' + fn_mod + '_max_props.csv')
+curve_dict = {}
+for cs in config['spot_seg']['channels']:
+    curve_dict[cs] = {}
+    for g in groups:
+        curve_dict[cs][g] = {}
+        for sg in subgroups:
+            sn_fovs = sn_dict[g][sg]
+            col = colors_tab20[c]
+            for sn in sn_fovs:
+                max_props = max_props_fnt.format(sample_name=sn, channel_spot=cs)
+                curves.append([max_props[max_props.intensity > t].shape[0]
+                                for t in x])
+            curve_dict[cs][g][sg] = curves
+
+# %% codecell
+# plot threshold curves
+filt_vals = [0.05,0.05]  # adjust
+xlims = [(0,0.1),(0,0.1)]
+lw = 0.5
+alpha = 0.8
+colors_tab20 = get_cmap('tab20').colors
+thresh_curve_fnt = config['spot_filter']['filter_dir']
+                    + '/thresh_curves_chan_{}'
+c = 0
+for cs, xlms, fv in zip(config['spot_seg']['channels'], xlims, filt_vals):
+    fig, ax = ip.general_plot(xlabel='Threshold',dims=dims)
+    for g in groups:
+        for sg in subgroups:
+            curve_list = curve_dict[cs][g][sg]
+            col = colors_tab20[c]
+            for crv in curve_list:
+                ax.plot(x, crv, c=col, lw=lw, alpha=alpha)
+        c += 1
+    ip.plt.legend()
+    ip.plt.set_xlims(xlms)
+    ymax = ax.get_ylim()[1]
+    ax.plot([fv]*2, [0,ymax], '-k')
+    ip.save_png_pdf(thresh_curve_fnt.format(cs))
+
+
+# %% codecell
+# pick threholds and save to file
+filt_vals_dict = {zip(config['spot_seg']['channels'],filt_vals)}
+filt_vals_df = pd.DataFrame(filt_vals_dict)
+filt_vals_df.to_csv(config['filter_values_fn'])
+
 
 
 # %% clims_cell
-
-
-import numpy as np
-a = np.array([[1,2,3,4],[5,6,7,8],[1,2,1,2]]).T
-b = list(a)
-b
-
-c = np.unique(a[:,2])
-c
-
-
-d = pd.DataFrame([[x,[(y[0],y[1]) for y in list(a) if y[2]==x]] for x in c])
-d
-
-from itertools import groupby
-from operator import itemgetter
-b.sort(key=itemgetter(2))
-b
-e = groupby(b, itemgetter(2))
-e
-[[i[0],[j for j in i[1]]] for i in e]
-
-a = pd.DataFrame(np.array([[1,2],[1,2]]))
-a
-
-
-ma_df = pd.DataFrame(ma, columns=['row','col'])
-maxs_cid = spf.maxs_to_cell_id(ma_df, im_cell_seg, search_radius=5)
-maxs_cid
